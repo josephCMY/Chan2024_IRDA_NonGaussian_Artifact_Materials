@@ -22,7 +22,7 @@ myFmt = mdates.DateFormatter('%b-%d\n%HUTC')
 myBlankFmt = mdates.DateFormatter(' ')
 import os
 
-
+from pylib_expt_specific_settings import convert_old_exptname_to_manuscript_name
 from copy import deepcopy
 
 
@@ -55,7 +55,7 @@ nK = 201    # Number of wavenumbers
 nZ = 44     # Number of model levels
 
 # Relative humidity bins
-rh_bin_edges = np.linspace(0,110,111)/100.
+rh_bin_edges = np.linspace(0,200,201)/100.
 rh_bin_ctrs = (rh_bin_edges[1:]+rh_bin_edges[:-1])/2.
 nBins = len(rh_bin_edges)-1
 
@@ -130,13 +130,14 @@ print('Imported RH stats')
     Set up figure
 '''
 # Init figure
-# fig, axes = plt.subplots( nrows = 5, ncols = 1, figsize= (6, 9 ) )
-fig = plt.figure( figsize = (6,6) )
-axes = [ None, None, None, None]
-axes[0] = fig.add_axes([0.12, 0.8 ,0.93,0.15])
-axes[1] = fig.add_axes([0.12, 0.52, 0.93,0.16])
-axes[2] = fig.add_axes([0.12, 0.31, 0.93,0.16])
-axes[3] = fig.add_axes([0.12, 0.1, 0.93,0.16])
+# fig, axes = plt.subplots( nrows = 5, ncols = 1, figsize= (6, 8 ) )
+fig = plt.figure( figsize = (6,8) )
+axes = [ None, None, None, None, None]
+axes[0] = fig.add_axes([0.12, 0.83, 0.93,0.13])
+axes[1] = fig.add_axes([0.12, 0.65,0.93,0.13])
+axes[2] = fig.add_axes([0.12, 0.42, 0.93,0.13])
+axes[3] = fig.add_axes([0.12, 0.24, 0.93,0.13])
+axes[4] = fig.add_axes([0.12, 0.06, 0.93,0.13])
 
 
 
@@ -160,24 +161,24 @@ expt = exptlist[0]
 
 
 
-# # DA-created clouds VS DA-survived clouds
-# ax=axes[0]
-# prior_clouds = np.sum( diagnostics[expt]['xf cloud rh'], axis = -1 )
-# poste_clouds = np.sum( diagnostics[expt]['xa cloud rh'], axis = -1 )
-# diff = (poste_clouds ) / ( prior_clouds+1e-6)  
-# crange = np.linspace( 1,3,6)
-# cnf = ax.contourf( datemesh, pmesh, diff.T, crange, cmap='inferno_r', extend='max' )
-# # cnf = ax.contourf( datemesh, pmesh, diff.T, locator=ticker.LogLocator(), cmap='inferno_r', extend='max' )
-# # ax.contour( datemesh, pmesh, diff.T, [1., 1.1,1.2], colors='k', linestyles=[":","--","-"])
-# ax.set_title('a) (No. of Analysis Clouds) / (No. of Forecast Clouds)', loc='left')
-# ax.set_ylim([ 1000, 100.] )
-# ax.set_ylabel('Pres. (hPa)')
-# ax.xaxis.set_major_formatter(myFmt)
-# cbar = fig.colorbar(cnf, ax=ax)
+# DA-created clouds VS DA-survived clouds
+ax=axes[0]
+prior_clouds = np.sum( diagnostics[expt]['xf cloud rh'], axis = -1 )
+poste_clouds = np.sum( diagnostics[expt]['xa cloud rh'], axis = -1 )
+diff = (poste_clouds ) / ( prior_clouds+1e-6)  
+crange = np.linspace( 0.8,1.6,5)
+cnf = ax.contourf( datemesh, pmesh, diff.T, crange, cmap='Greys', extend='max' )
+# cnf = ax.contourf( datemesh, pmesh, diff.T, locator=ticker.LogLocator(), cmap='inferno_r', extend='max' )
+# ax.contour( datemesh, pmesh, diff.T, [1., 1.1,1.2], colors='k', linestyles=[":","--","-"])
+ax.set_title('a) (No. of Analysis Clouds) / (No. of Forecast Clouds)', loc='left')
+ax.set_ylim([ 950, 150] )
+ax.set_ylabel('Pres. (hPa)')
+ax.xaxis.set_major_formatter(myFmt)
+cbar = fig.colorbar(cnf, ax=ax)
 
 
 # DA-created clouds VS DA-survived clouds
-ax=axes[0]
+ax=axes[1]
 da_created_clouds = np.sum( diagnostics[expt]['xa_rh of DA-created clouds'], axis=-1)
 da_survived_clouds = np.sum( diagnostics[expt]['xa_rh of DA-survived clouds'], axis=-1)+1e-6
 created_frac = (da_created_clouds ) / ( da_survived_clouds + da_created_clouds)  
@@ -185,8 +186,8 @@ crange = np.linspace( 0,0.6,7)
 cnf = ax.contourf( datemesh, pmesh, created_frac.T, crange, cmap='inferno_r', extend='max' )
 # cnf = ax.contourf( datemesh, pmesh, diff.T, locator=ticker.LogLocator(), cmap='inferno_r', extend='max' )
 # ax.contour( datemesh, pmesh, diff.T, [1., 1.1,1.2], colors='k', linestyles=[":","--","-"])
-ax.set_title('a) (No. of DA-created Clouds) / (No. of Analysis Clouds)', loc='left')
-ax.set_ylim([ 1000, 100.] )
+ax.set_title('b) (No. of DA-created Clouds) / (No. of Analysis Clouds)', loc='left')
+ax.set_ylim([ 950, 150] )
 ax.set_ylabel('Pres. (hPa)')
 ax.xaxis.set_major_formatter(myFmt)
 cbar = fig.colorbar(cnf, ax=ax)
@@ -194,34 +195,58 @@ cbar = fig.colorbar(cnf, ax=ax)
 
 
 # What is the RH "PDF" like for the prior clouds? 
-ax = axes[1]
+ax = axes[2]
 prior_rh_pdf = np.zeros( [nD, nZ, nBins] )
 rh_interval = (rh_bin_edges[1]-rh_bin_edges[0])
 for dd in range(nD):
     for kk in range(nZ):
+        # print(diagnostics['NoDA']['xf cloud rh'][dd,kk])
         sum_of_clouds = np.sum( diagnostics['NoDA']['xf cloud rh'][dd,kk], axis=-1) +1e-6
         prior_rh_pdf[dd, kk,:] = diagnostics['NoDA']['xf cloud rh'][dd,kk,:] / (sum_of_clouds * rh_interval)
 prior_rh_pdf = np.mean(prior_rh_pdf, axis=0)
 
 prior_rh_cdf = np.cumsum( prior_rh_pdf*rh_interval, axis = -1)
-print( prior_rh_cdf.max() )
+# print( prior_rh_cdf.min(), prior_rh_cdf.max() )
 
 
 
 prior_cloud_rh_cnf = ax.contourf( rh_bin_ctrs, plvls, prior_rh_cdf, 
-                                  np.linspace(0.35,0.95,3),
+                                  np.linspace(0.05,0.95,4),
                                   cmap='viridis_r', extend='max' )
 # prior_cloud_rh_cnf = ax.contourf( rh_bin_ctrs, plvls, prior_rh_pdf+1e-6, 
 #                                   np.linspace(1,7,7),
 #                                   cmap='viridis_r', extend='max')
 ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, np.linspace(0.35,0.95,3), colors='r', linestyles=[':','--','-'], linewidths=2.0)
 # ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, [0.3], colors='r', linestyles='--', linewidths=2)
-ax.set_title( 'b) CDF of RH in NoDA Clouds', loc='left')
-ax.set_ylim([ 1000, 100.] )
-ax.set_xlim([ 0.4, 1.05] )
+ax.set_title( 'c) CDF of S in NoDA Clouds', loc='left')
+ax.set_ylim([ 950, 150] )
+ax.set_xlim([ 0.7, 1.3 ] )
 # ax.set_xlabel('Relative Humidity (Pa / Pa)')
 ax.set_ylabel('Pres. (hPa)')
 cbar = fig.colorbar(prior_cloud_rh_cnf, ax=ax)
+
+
+# # What is the impact of DA on RH of clouds?
+# ax = axes[1]
+# poste_rh_pdf = np.zeros( [nD, nZ, nBins] )
+# for dd in range(nD):
+#     for kk in range(nZ):
+#         sum_of_clouds = np.sum( diagnostics[expt]['xa cloud rh'][dd,kk], axis=-1)+1e-6
+#         poste_rh_pdf[dd, kk,:] = diagnostics[expt]['xa cloud rh'][dd,kk,:] / (sum_of_clouds * rh_interval)
+# poste_rh_pdf = np.mean( poste_rh_pdf, axis=0)
+# poste_rh_cdf = np.cumsum( poste_rh_pdf * rh_interval, axis=-1)
+
+# incre_rh_pdf = poste_rh_pdf - prior_rh_pdf
+# diff_cloud_cnf = ax.contourf( rh_bin_ctrs, plvls, poste_rh_cdf, np.linspace(0.35,0.95,3), cmap='viridis_r', extend='max')
+# ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, np.linspace(0.35,0.95,3), colors='r', linestyles=[':','--','-'], linewidths=2.0)
+# # ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, [0.3], colors='white', linestyles='-', linewidths=3)
+# # ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, [0.3], colors='r', linestyles='--', linewidths=2)
+# ax.set_title( 'b) CDF of RH of Analysis Clouds in %s' % convert_old_exptname_to_manuscript_name(expt), loc='left')
+# ax.set_ylim([ 950, 150] )
+# ax.set_xlim([ 0.4, 1.05] )
+# ax.set_ylabel('Pres. (hPa)')
+# # ax.set_xlabel('Relative Humidity (Pa / Pa)')
+# fig.colorbar(diff_cloud_cnf, ax=ax)
 
 
 
@@ -230,7 +255,7 @@ cbar = fig.colorbar(prior_cloud_rh_cnf, ax=ax)
 
 
 # What is the RH of DA-created clouds?
-ax = axes[2]
+ax = axes[3]
 fake_cloud_rh_pdf = np.zeros( [nD, nZ, nBins] )
 for dd in range(nD):
     for kk in range(nZ):
@@ -244,9 +269,9 @@ fake_cloud_cnf = ax.contourf( rh_bin_ctrs, plvls, fake_cloud_rh_cdf,
 ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, np.linspace(0.35,0.95,3), colors='r', linestyles=[':','--','-'], linewidths=2.0)
 # ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, [0.3], colors='white', linestyles='-', linewidths=3)
 # ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, [0.3], colors='r', linestyles='--', linewidths=2)
-ax.set_title( 'c) CDF of RH of DA-Created Analysis Clouds in %s' % expt, loc='left')
-ax.set_ylim([ 1000, 100.] )
-ax.set_xlim([ 0.4, 1.05] )
+ax.set_title( 'd) CDF of S of DA-Created Analysis Clouds in %s' % convert_old_exptname_to_manuscript_name(expt), loc='left')
+ax.set_ylim([ 950, 150] )
+ax.set_xlim([ 0.7, 1.3 ] )
 ax.set_ylabel('Pres. (hPa)')
 # ax.set_xlabel('Relative Humidity (Pa / Pa)')
 fig.colorbar(fake_cloud_cnf, ax=ax)
@@ -255,7 +280,7 @@ fig.colorbar(fake_cloud_cnf, ax=ax)
 
 
 # For DA-surviving clouds, what is the change in RH?
-ax = axes[3]
+ax = axes[4]
 # phys_cloud_prior_rh_pdf = np.zeros( [nD, nZ, nBins] )
 # for dd in range(nD):
 #     for kk in range(nZ):
@@ -278,24 +303,29 @@ change_in_phys_cloud_rh_pdf_cnf = ax.contourf( rh_bin_ctrs, plvls, phys_cloud_po
 ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, np.linspace(0.35,0.95,3), colors='r', linestyles=[':','--','-'], linewidths=2.0)
 # ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, [0.3], colors='white', linestyles='-', linewidths=3)
 # ax.contour( rh_bin_ctrs, plvls, prior_rh_cdf, [0.3], colors='r', linestyles='--', linewidths=2)
-ax.set_title( 'd) CDF of DA-Survived Analysis Clouds in %s' % expt, loc='left')
-ax.set_ylim([ 1000, 100.] )
-ax.set_xlim([ 0.4, 1.05] )
-ax.set_xlabel('Relative Humidity (Pa / Pa)')
+ax.set_title( 'e) CDF of S of DA-Survived Analysis Clouds in %s' % convert_old_exptname_to_manuscript_name(expt), loc='left')
+ax.set_ylim([ 950, 150] )
+ax.set_xlim([ 0.7, 1.3 ] )
+ax.set_xlabel('Saturation Ratio S (Pa / Pa)')
 ax.set_ylabel('Pres. (hPa)')
 fig.colorbar(change_in_phys_cloud_rh_pdf_cnf, ax=ax)
 
 
-
-for ax in axes[1:3]:
+axes[0].xaxis.set_major_formatter(myBlankFmt)
+for ax in axes[2:-1]:
     ax.xaxis.set_major_formatter(myBlankFmt)
 
-# fig.subplots_adjust(hspace=0.4, wspace=0.6, left=0.12, right=1.05, bottom=0.1, top=0.95 )
-print( expt, expt)
-plt.savefig('figs/CloudInfo_%s.pdf' % expt)
+# fig.subplots_adjust(hspace=0.5, wspace=0.6, left=0.12, right=1.05, bottom=0.075, top=0.95 )
+print( expt, convert_old_exptname_to_manuscript_name(expt))
+plt.savefig('figs/CloudInfo_%s.pdf' % convert_old_exptname_to_manuscript_name(expt))
+plt.close()
 
 
-
-
-
-
+# Extra
+crange = np.linspace( 0.5,1.0,11)
+print( prior_clouds.shape)
+cnf = plt.contourf( datemesh, pmesh, (da_survived_clouds/prior_clouds).T, crange, cmap='inferno_r' )
+plt.colorbar(cnf)
+plt.ylim([950,150])
+plt.title('(No. of DA-survived Clouds) / (No. of Forecast Clouds)')
+plt.savefig('figs/da_survived_fraction_%s.pdf' % convert_old_exptname_to_manuscript_name(expt))

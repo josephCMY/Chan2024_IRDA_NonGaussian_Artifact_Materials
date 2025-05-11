@@ -10,6 +10,7 @@ import numpy as np
 from numba import njit
 from gc import collect as gc_collect
 
+from pylib_expt_specific_settings import *
 from pylib_read_obs_priors import *
 
 from datetime import datetime, timedelta

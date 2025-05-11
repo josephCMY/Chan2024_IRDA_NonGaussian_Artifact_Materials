@@ -130,6 +130,7 @@ all_data_dict['qh']['range'] = np.linspace(-0.05,0.55,101)
 
     Row 1: bivariate plots of prior ens, prior Gaussian PDFs and obs likelihood function
     Row 2: bivariate plots of posterior ens & posterior gaussian PDFs
+    Row 3: bivariate plots of FCSTCLOUD posterior ens & posterior gaussian PDFs
 '''
 ens_size = len(qhydro_xa_ens)
 
@@ -142,7 +143,7 @@ plot_combos = ([
     ['qv','qh']
 ])
 
-fig, axs = plt.subplots( nrows=2, ncols=3, figsize=(8,6.5))
+fig, axs = plt.subplots( nrows=3, ncols=3, figsize=(8,8.5))
 
 # axs = axs.T
 
@@ -182,7 +183,7 @@ for icol, combo in enumerate( plot_combos ):
 
     # Throw on saturation lines
     if v1 == 'qv':
-        axs[0,icol].axvline( 2.5, color = 'k', zorder=1, linestyle="--", linewidth=0.5, label='RH = 100%')
+        axs[0,icol].axvline( 2.5, color = 'k', zorder=1, linestyle="--", linewidth=0.5) #, label='RH = 100%')
 
 
 
@@ -246,12 +247,83 @@ for icol, combo in enumerate( plot_combos ):
     axs[1,icol].set_title( 'b%d) Analysis %s & %s' % (icol+1, v2.upper(), v1.upper() ), loc='left')
 
     if v1 == 'qv':
-        axs[1,icol].axvline( 2.5, color = 'k', zorder=1, linestyle="--", linewidth=0.5, label='Cloud-permitting QVAPOR')
+        axs[1,icol].axvline( 2.5, color = 'k', zorder=1, linestyle="--", linewidth=0.5) #, label='Cloud-permitting QVAPOR')
+
+
+
+
+# Plot various combo's FCSTCLOUD rows
+for icol, combo in enumerate( plot_combos ):
+
+    # extract variable keys
+    v1, v2 = combo
+
+    # Special handling to prevent update to qhydro
+    x1 = 'xa'; x2='xa'
+    if v1 == 'qh':
+        x1 = 'xf'
+    elif v2 == 'qh':
+        x2 = 'xf'
+
+    # Plot analysis distribution
+    mean = np.array( [ np.mean(all_data_dict[v1][x1]), np.mean(all_data_dict[v2][x2]) ] )
+    cov = np.cov( all_data_dict[v1][x1], all_data_dict[v2][x2], ddof=1)
+    rv_obj = multivariate_normal(mean = mean, cov = cov)
+    v1mesh, v2mesh = np.meshgrid( all_data_dict[v1]['range'], all_data_dict[v2]['range'])
+    pos = np.dstack( (v1mesh, v2mesh) )
+    pdf = rv_obj.pdf(pos) 
+    pdf /= pdf.max()
+    CS = axs[2,icol].contour( v1mesh, v2mesh, pdf, [0.5, 0.9], linestyles=[':','-'], linewidths=1, colors='lightcoral', zorder=0)
+    # axs[1,icol].clabel(CS, CS.levels, inline=True)
+    # cnf2 = axs[1,icol].pcolormesh( v1mesh, v2mesh, pdf, vmin=0.5, vmax =1.2, cmap = 'Reds', alpha=0.5, zorder=0 )
+    # fig.colorbar( cnf, ax=axs[1,icol])
+
+
+    # Plot individual members for first row
+    for imem in range( ens_size ):
+        axs[2,icol].plot( 
+            all_data_dict[v1]['xf'][imem], all_data_dict[v2]['xf'][imem], markersize=7, mew = 0.5,
+            marker=markers[imem], linewidth=0, color='k', label='Forecast Mem %s' % (markers[imem]) 
+        )
+    for imem in range( ens_size ):
+        axs[2,icol].plot( 
+            all_data_dict[v1][x1][imem], all_data_dict[v2][x2][imem], markersize=7, mew = 0.5,
+            marker=markers[imem], linewidth=0, color='r', label='Analysis Mem %s' % (markers[imem]) 
+        )
+
+    # Plot analysis increments
+    for imem in range(ens_size):
+        incre_x = all_data_dict[v1][x1][imem] - all_data_dict[v1]['xf'][imem]
+        incre_y = all_data_dict[v2][x2][imem] - all_data_dict[v2]['xf'][imem]
+        offset_x = incre_x
+        offset_y = incre_y
+        if imem==0:
+            axs[2,icol].plot(
+                    [all_data_dict[v1]['xf'][imem]+offset_x, all_data_dict[v1][x1][imem]-offset_x],
+                    [all_data_dict[v2]['xf'][imem]+offset_y, all_data_dict[v2][x2][imem]-offset_y], 
+                    color='r', linewidth=0.5,
+                    label = 'Analysis Increment'
+                )
+        else:
+            axs[2,icol].plot(
+                    [all_data_dict[v1]['xf'][imem]+offset_x, all_data_dict[v1][x1][imem]-offset_x],
+                    [all_data_dict[v2]['xf'][imem]+offset_y, all_data_dict[v2][x2][imem]-offset_y], 
+                    color='r', linewidth=0.5
+                )
+    
+    # Label plots
+    axs[2,icol].set_xlabel( '%s (%s)' % (all_data_dict[v1]['name'], all_data_dict[v1]['unit']) )
+    axs[2,icol].set_ylabel( '%s (%s)' % (all_data_dict[v2]['name'], all_data_dict[v2]['unit']) )
+    axs[2,icol].set_title( 'c%d) FCSTCLOUD %s & %s' % (icol+1, v2.upper(), v1.upper() ), loc='left')
+
+    if v1 == 'qv':
+        axs[2,icol].axvline( 2.5, color = 'k', zorder=1, linestyle="--", linewidth=0.5, label='Cloud-permitting QVAPOR')
+
 
 
 
 # Throw on observation indicator
-for i in range(2):
+for i in range(3):
     for j in range(2):
         axs[i,j].axhline( obs, color='dodgerblue', linestyle='--', linewidth=1, label='Observed IR BT')
 
@@ -260,11 +332,11 @@ for i in range(2):
     
 
 
-fig.subplots_adjust(wspace=0.4, hspace=0.5, left=0.075, right=0.99, bottom=0.25, top=0.93)
+fig.subplots_adjust(wspace=0.35, hspace=0.45, left=0.075, right=0.95, bottom=0.2, top=0.97)
 
 
 # Throw on some legends
-handles, labels = axs[1,0].get_legend_handles_labels()
+handles, labels = axs[2,0].get_legend_handles_labels()
 fig.legend( handles, labels, loc='lower center', ncols=4)
 
 
